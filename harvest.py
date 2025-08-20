@@ -24,6 +24,7 @@ def fetch_news():
             title = simple_rewrite(item.get_text(strip=True))
             link_tag = item.find("a")
             link = link_tag["href"] if link_tag else url_udn
+            insert_news(title, link)
             news_list.append({"title": title, "link": link})
     except Exception as e:
         print("抓联合新闻网出错:", e)
@@ -38,6 +39,7 @@ def fetch_news():
             title = simple_rewrite(item.get_text(strip=True))
             link_tag = item.find("a")
             link = link_tag["href"] if link_tag else url_ltn
+            insert_news(title, link)
             news_list.append({"title": title, "link": link})
     except Exception as e:
         print("抓自由时报出错:", e)
@@ -52,6 +54,7 @@ def fetch_news():
             title = simple_rewrite(item.get_text(strip=True))
             link_tag = item.find("a")
             link = link_tag["href"] if link_tag else url_yahoo
+            insert_news(title, link)
             news_list.append({"title": title, "link": link})
     except Exception as e:
         print("抓 Yahoo 新闻出错:", e)
