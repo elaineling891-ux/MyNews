@@ -19,28 +19,52 @@ def fetch_news():
         url_udn = "https://udn.com/news/index"
         resp = requests.get(url_udn, timeout=10)
         soup = BeautifulSoup(resp.text, "html.parser")
-        items = soup.select(".story-list__text")  # 示例 selector，需确认
-        for item in items[:5]:  # 只取前5条
-            title = simple_rewrite(item.get_text(strip=True))
-            link_tag = item.find("a")
-            link = link_tag["href"] if link_tag else url_udn
-            insert_news(title, link)
-            news_list.append({"title": title, "link": link})
+        items = soup.select(".story-list__text h2 a")
+        for item in items[:5]:
+            title = item.get_text(strip=True)
+            link = "https://udn.com" + item["href"]
+
+            content = ""
+            try:
+                art_resp = requests.get(link, timeout=10)
+                art_soup = BeautifulSoup(art_resp.text, "html.parser")
+                paragraphs = art_soup.select(".article-content__paragraph")
+                content = " ".join(p.get_text(strip=True) for p in paragraphs)
+            except:
+                pass
+
+            # 改写
+            title_rw = simple_rewrite(title)
+            content_rw = simple_rewrite(content)
+            insert_news(title_rw, content_rw)
+            news_list.append({"title": title_rw, "content": content_rw})
     except Exception as e:
         print("抓联合新闻网出错:", e)
 
     # ===== 自由时报 =====
     try:
-        url_ltn = "https://www.ltn.com.tw"
+        url_ltn = "https://news.ltn.com.tw/list/breakingnews"
         resp = requests.get(url_ltn, timeout=10)
         soup = BeautifulSoup(resp.text, "html.parser")
-        items = soup.select(".title")  # 示例 selector
+        items = soup.select("ul.list > li > a")
         for item in items[:5]:
-            title = simple_rewrite(item.get_text(strip=True))
-            link_tag = item.find("a")
-            link = link_tag["href"] if link_tag else url_ltn
-            insert_news(title, link)
-            news_list.append({"title": title, "link": link})
+            title = item.get_text(strip=True)
+            link = item["href"]
+
+            content = ""
+            try:
+                art_resp = requests.get(link, timeout=10)
+                art_soup = BeautifulSoup(art_resp.text, "html.parser")
+                paragraphs = art_soup.select("div.text p")
+                content = " ".join(p.get_text(strip=True) for p in paragraphs)
+            except:
+                pass
+
+            # 改写
+            title_rw = simple_rewrite(title)
+            content_rw = simple_rewrite(content)
+            insert_news(title_rw, content_rw)
+            news_list.append({"title": title_rw, "content": content_rw})
     except Exception as e:
         print("抓自由时报出错:", e)
 
@@ -49,18 +73,34 @@ def fetch_news():
         url_yahoo = "https://tw.news.yahoo.com/"
         resp = requests.get(url_yahoo, timeout=10)
         soup = BeautifulSoup(resp.text, "html.parser")
-        items = soup.select("h3")  # 示例 selector
+        items = soup.select("h3 a")
         for item in items[:5]:
-            title = simple_rewrite(item.get_text(strip=True))
-            link_tag = item.find("a")
-            link = link_tag["href"] if link_tag else url_yahoo
-            insert_news(title, link)
-            news_list.append({"title": title, "link": link})
+            title = item.get_text(strip=True)
+            link = item["href"]
+
+            # Yahoo 链接有可能是相对路径，补全
+            if link.startswith("/"):
+                link = "https://tw.news.yahoo.com" + link
+
+            content = ""
+            try:
+                art_resp = requests.get(link, timeout=10)
+                art_soup = BeautifulSoup(art_resp.text, "html.parser")
+                paragraphs = art_soup.select("div.caas-body p")
+                content = " ".join(p.get_text(strip=True) for p in paragraphs)
+            except:
+                pass
+
+            # 改写
+            title_rw = simple_rewrite(title)
+            content_rw = simple_rewrite(content)
+            insert_news(title_rw, content_rw)
+            news_list.append({"title": title_rw, "content": content_rw})
     except Exception as e:
         print("抓 Yahoo 新闻出错:", e)
 
     return news_list
-
+    
 def init_db():
     from database import init_db
     init_db()
