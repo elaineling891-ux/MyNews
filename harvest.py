@@ -2,13 +2,19 @@ import requests
 from bs4 import BeautifulSoup
 from db import insert_news
 from transformers import pipeline
-from googletrans import Translator
+from deep_translator import GoogleTranslator
 
 # 初始化 Hugging Face 改写模型
 paraphrase = pipeline("text2text-generation", model="Vamsi/T5_Paraphrase_Paws")
 
 # 初始化翻译器
-translator = Translator()
+
+
+def translate_to_zh(text):
+    try:
+        return GoogleTranslator(source='auto', target='zh-CN').translate(text)
+    except:
+        return text
 
 def rewrite_and_translate(text):
     # 改写
@@ -21,7 +27,7 @@ def rewrite_and_translate(text):
 
     # 翻译成简体中文
     try:
-        simplified = translator.translate(rewritten, dest='zh-CN').text
+        simplified = translate_to_zh(rewritten)
     except Exception as e:
         print("翻译失败:", e)
         simplified = rewritten
