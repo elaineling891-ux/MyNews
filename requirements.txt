@@ -7,3 +7,5 @@ gunicorn
 jinja2
 aiofiles
 requests
+transformers
+torch
