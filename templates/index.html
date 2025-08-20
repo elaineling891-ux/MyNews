@@ -1,41 +1,82 @@
-
-<!doctype html>
-<html lang="zh">
+<!DOCTYPE html>
+<html lang="zh-TW">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>自动华语新闻</title>
-  <link rel="stylesheet" href="/static/style.css"/>
-  <!-- AdSense：替换为你的 ca-pub 和 slot -->
-  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-xxxxxxxx" crossorigin="anonymous"></script>
+    <meta charset="UTF-8">
+    <title>最新新聞</title>
+    <style>
+        body {
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f9f9f9;
+            margin: 0;
+            padding: 0;
+        }
+
+        header {
+            background-color: #1e90ff;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 2em;
+        }
+
+        .news-container {
+            max-width: 900px;
+            margin: 30px auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .news-card {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .news-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .news-card a {
+            text-decoration: none;
+            color: #333;
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+
+        .news-card a:hover {
+            color: #1e90ff;
+        }
+
+        .timestamp {
+            color: #888;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+    </style>
 </head>
 <body>
-  <header>
-    <h1>自动华语新闻</h1>
-    <p class="muted">仅展示标题与链接，点击跳转原文。</p>
-  </header>
+    <header>
+        <h1>最新新聞</h1>
+    </header>
 
-  <div class="ads">
-    <ins class="adsbygoogle" style="display:block" data-ad-client="ca-pub-xxxxxxxx" data-ad-slot="1111111111" data-ad-format="auto" data-full-width-responsive="true"></ins>
-    <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
-  </div>
-
-  <main>
-    <ul class="news-list">
-      {% for title, url, source, image_url, published_at in news %}
-      <li class="news-item">
-        <div class="content">
-          <a class="title" href="{{ url }}" target="_blank" rel="noopener">{{ title }}</a>
-          <div class="meta">{{ source }} · {{ published_at }}</div>
+    <div class="news-container">
+        {% for item in news %}
+        <div class="news-card">
+            <a href="{{ item.link }}" target="_blank">{{ item.title }}</a>
+            {% if item.timestamp %}
+            <div class="timestamp">{{ item.timestamp }}</div>
+            {% endif %}
         </div>
-      </li>
-      {% endfor %}
-    </ul>
-  </main>
-
-  <div class="ads">
-    <ins class="adsbygoogle" style="display:block" data-ad-client="ca-pub-xxxxxxxx" data-ad-slot="2222222222" data-ad-format="auto" data-full-width-responsive="true"></ins>
-    <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
-  </div>
+        {% endfor %}
+    </div>
 </body>
 </html>
