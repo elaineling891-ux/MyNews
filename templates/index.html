@@ -1,0 +1,41 @@
+
+<!doctype html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>自动华语新闻</title>
+  <link rel="stylesheet" href="/static/style.css"/>
+  <!-- AdSense：替换为你的 ca-pub 和 slot -->
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-xxxxxxxx" crossorigin="anonymous"></script>
+</head>
+<body>
+  <header>
+    <h1>自动华语新闻</h1>
+    <p class="muted">仅展示标题与链接，点击跳转原文。</p>
+  </header>
+
+  <div class="ads">
+    <ins class="adsbygoogle" style="display:block" data-ad-client="ca-pub-xxxxxxxx" data-ad-slot="1111111111" data-ad-format="auto" data-full-width-responsive="true"></ins>
+    <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+  </div>
+
+  <main>
+    <ul class="news-list">
+      {% for title, url, source, image_url, published_at in news %}
+      <li class="news-item">
+        <div class="content">
+          <a class="title" href="{{ url }}" target="_blank" rel="noopener">{{ title }}</a>
+          <div class="meta">{{ source }} · {{ published_at }}</div>
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+  </main>
+
+  <div class="ads">
+    <ins class="adsbygoogle" style="display:block" data-ad-client="ca-pub-xxxxxxxx" data-ad-slot="2222222222" data-ad-format="auto" data-full-width-responsive="true"></ins>
+    <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+  </div>
+</body>
+</html>
