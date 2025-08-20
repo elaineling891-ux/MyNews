@@ -1,6 +1,6 @@
 import requests
 from bs4 import BeautifulSoup
-import random
+import random import insert_news, get_db
 
 def simple_rewrite(text):
     """
@@ -56,3 +56,7 @@ def fetch_news():
         print("抓 Yahoo 新闻出错:", e)
 
     return news_list
+
+def init_db():
+    from database import init_db
+    init_db()
