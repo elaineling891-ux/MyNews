@@ -33,3 +33,10 @@ def news_detail(request: Request, news_id: int):
             "year": datetime.now().year
         })
     return HTMLResponse(content="新闻不存在", status_code=404)
+
+import os
+import uvicorn
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8000))  # Render 会自动提供 PORT
+    uvicorn.run("app:app", host="0.0.0.0", port=port, reload=True)
