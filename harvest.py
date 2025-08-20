@@ -102,5 +102,5 @@ def fetch_news():
     return news_list
     
 def init_db():
-    from database import init_db
+    from db import init_db
     init_db()
