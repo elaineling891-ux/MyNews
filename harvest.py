@@ -1,6 +1,6 @@
 import requests
 from bs4 import BeautifulSoup 
-from database import insert_news, get_db
+from db import insert_news, get_db
 import random
 
 def simple_rewrite(text):
