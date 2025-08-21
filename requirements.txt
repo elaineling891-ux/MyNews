@@ -7,7 +7,5 @@ gunicorn
 jinja2
 aiofiles
 requests
-transformers
-torch
 deep-translator
 openai>=1.0.0
