@@ -3,7 +3,6 @@ uvicorn
 requests
 beautifulsoup4
 psycopg2-binary
-gunicorn
 jinja2
 aiofiles
 deep-translator
