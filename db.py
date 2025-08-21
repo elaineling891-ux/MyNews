@@ -12,6 +12,15 @@ def init_db():
             title TEXT,
             content TEXT,
             created_at TIMESTAMP DEFAULT NOW()
+        CREATE TABLE IF NOT EXISTS news (
+            id SERIAL PRIMARY KEY,
+            title TEXT NOT NULL,
+            content TEXT,
+            link TEXT,
+            created_at TIMESTAMP DEFAULT NOW(),
+            UNIQUE(title),
+            UNIQUE(link)
+);
         )
     """)
     conn.commit()
@@ -19,12 +28,14 @@ def init_db():
     conn.close()
     print("✅ 数据库初始化完成")
 
-def insert_news(title, content):
-    if not title or not content:
-        return
+def insert_news(title, content, link=None):
     conn = psycopg2.connect(DB_URL)
     cur = conn.cursor()
-    cur.execute("INSERT INTO news (title, content) VALUES (%s, %s)", (title, content))
+    cur.execute("""
+        INSERT INTO news (title, content, link)
+        VALUES (%s, %s, %s)
+        ON CONFLICT (link) DO NOTHING
+    """, (title, content, link))
     conn.commit()
     cur.close()
     conn.close()
