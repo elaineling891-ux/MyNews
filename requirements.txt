@@ -10,3 +10,4 @@ requests
 transformers
 torch
 deep-translator
+openai>=1.0.0
