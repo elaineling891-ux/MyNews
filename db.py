@@ -7,16 +7,15 @@ def init_db():
     conn = psycopg2.connect(DB_URL)
     cur = conn.cursor()
     cur.execute("""
-        CREATE TABLE IF NOT EXISTS news (
-            id SERIAL PRIMARY KEY,
-            title TEXT NOT NULL,
-            content TEXT,
-            link TEXT,
-            created_at TIMESTAMP DEFAULT NOW(),
-            UNIQUE(title),
-            UNIQUE(link)
-);
-        )
+    CREATE TABLE IF NOT EXISTS news (
+        id SERIAL PRIMARY KEY,
+        title TEXT NOT NULL,
+        content TEXT,
+        link TEXT,
+        created_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE(title),
+        UNIQUE(link)
+    )
     """)
     conn.commit()
     cur.close()
