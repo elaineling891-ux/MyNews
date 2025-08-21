@@ -10,6 +10,8 @@
     .navbar { background: linear-gradient(90deg, #007bff, #00c6ff); }
     .navbar-brand { color: white !important; font-weight: bold; }
     .list-group-item { cursor: pointer; }
+    .news-date { font-size: 0.85rem; color: #888; margin-left: 10px; }
+    .news-summary { font-size: 0.95rem; color: #555; margin-top: 5px; }
     footer { margin-top: 30px; text-align: center; padding: 20px; background-color: #f1f1f1; font-size: 0.9rem; color: #666; }
   </style>
 </head>
@@ -24,8 +26,10 @@
   <h2 class="mb-4">最新新闻</h2>
   <div class="list-group">
     {% for item in news %}
-      <a href="/news/{{ loop.index0 }}" class="list-group-item list-group-item-action">
+      <a href="/news/{{ item.id }}" class="list-group-item list-group-item-action">
         {{ item.title }}
+        <span class="news-date">{{ item.created_at }}</span>
+        <div class="news-summary">{{ item.content[:100] }}{% if item.content|length > 100 %}...{% endif %}</div>
       </a>
     {% endfor %}
   </div>
