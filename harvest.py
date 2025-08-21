@@ -3,15 +3,12 @@ from bs4 import BeautifulSoup
 from db import insert_news, news_exists
 from deep_translator import GoogleTranslator
 import time
+from urllib.parse import urljoin
 
-# --------------------------
-# 免费改写函数（Google 翻译）
-# --------------------------
 def rewrite_text(text):
     if not text:
         return ""
     try:
-        # 英文 -> 中文 -> 英文，达到改写效果
         en = GoogleTranslator(source="auto", target="en").translate(text)
         zh = GoogleTranslator(source="en", target="zh-CN").translate(en)
         return zh
@@ -28,13 +25,15 @@ def fetch_article_content(link):
         resp = requests.get(link, timeout=15)
         soup = BeautifulSoup(resp.text, "html.parser")
 
-        # 根据网站选择 selector
         if "udn.com" in link:
-            div = soup.select_one("div.article-content")
+            # UDN 内容在 div#story_body_content
+            div = soup.select_one("div#story_body_content")
         elif "ltn.com" in link:
+            # LTN 内容在 div.text p
             div = soup.select_one("div.text")
         elif "yahoo.com" in link:
-            div = soup.select_one("div[class*='caas-body']")
+            # Yahoo 内容在 article p
+            div = soup.select_one("article")
         else:
             div = None
 
@@ -49,19 +48,25 @@ def fetch_article_content(link):
 # --------------------------
 # 抓网站新闻标题和链接
 # --------------------------
-def fetch_site_news(url, title_selector, limit=20):
+def fetch_site_news(url, limit=20):
     news_items = []
     try:
         resp = requests.get(url, timeout=20)
         soup = BeautifulSoup(resp.text, "html.parser")
-        items = soup.select(title_selector)
+
+        if "udn.com" in url:
+            items = soup.select("div.story-list__text a")
+        elif "ltn.com" in url:
+            items = soup.select("div.title a")
+        elif "yahoo.com" in url:
+            items = soup.select("h3 a")
+        else:
+            items = []
+
         for item in items[:limit]:
             title = item.get_text(strip=True)
-            link_tag = item.find("a")
-            link = link_tag["href"] if link_tag else None
+            link = item.get("href")
             if link and link.startswith("/"):
-                # 补全相对链接
-                from urllib.parse import urljoin
                 link = urljoin(url, link)
             news_items.append((title, link))
     except Exception as e:
@@ -73,42 +78,29 @@ def fetch_site_news(url, title_selector, limit=20):
 # --------------------------
 def fetch_news():
     all_news = []
-
     sites = [
-        ("https://udn.com/news/index", ".story-list__text"),
-        ("https://www.ltn.com.tw", ".title"),
-        ("https://tw.news.yahoo.com/", "h3")
+        "https://udn.com/news/index",
+        "https://www.ltn.com.tw",
+        "https://tw.news.yahoo.com/"
     ]
 
-    for url, title_sel in sites:
-        site_name = url.split("//")[1].split("/")[0]
-        for title, link in fetch_site_news(url, title_sel, limit=20):
+    for url in sites:
+        for title, link in fetch_site_news(url, limit=20):
             if not link:
                 continue
-            # 避免重复抓取
             if news_exists(link):
-                print(f"已存在，跳过: {link}")
                 continue
-
-            # 抓文章内容
             content = fetch_article_content(link)
             if not content:
-                print(f"内容为空，跳过: {link}")
                 continue
-
-            # 改写标题和内容
             title_rw = rewrite_text(title)
             content_rw = rewrite_text(content)
-
             try:
                 insert_news(title_rw, content_rw, link)
                 all_news.append({"title": title_rw, "content": content_rw, "link": link})
                 print(f"插入成功: {title_rw[:30]}...")
             except Exception as e:
                 print(f"插入失败: {e}")
-
-            # 避免频繁请求，可加小延迟
             time.sleep(1)
-
     print(f"抓取完成，总共 {len(all_news)} 条新新闻")
     return all_news
