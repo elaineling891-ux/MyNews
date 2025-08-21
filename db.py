@@ -42,3 +42,15 @@ def get_all_news(limit=20):
     cur.close()
     conn.close()
     return [{"id": r[0], "title": r[1], "content": r[2]} for r in rows]
+
+def news_exists(link: str) -> bool:
+    """检查数据库里是否已经有这个链接"""
+    if not link:
+        return False
+    conn = psycopg2.connect(DB_URL)
+    cur = conn.cursor()
+    cur.execute("SELECT 1 FROM news WHERE link=%s LIMIT 1", (link,))
+    exists = cur.fetchone() is not None
+    cur.close()
+    conn.close()
+    return exists
