@@ -1,4 +1,3 @@
-# db.py
 import psycopg2
 import os
 
@@ -25,20 +24,16 @@ def insert_news(title, content):
         return
     conn = psycopg2.connect(DB_URL)
     cur = conn.cursor()
-    cur.execute(
-        "INSERT INTO news (title, content) VALUES (%s, %s)",
-        (title, content)
-    )
+    cur.execute("INSERT INTO news (title, content) VALUES (%s, %s)", (title, content))
     conn.commit()
     cur.close()
     conn.close()
-    print(f"✅ 已写入: {title[:20]}...")
 
-def get_all_news():
+def get_all_news(limit=20):
     conn = psycopg2.connect(DB_URL)
     cur = conn.cursor()
-    cur.execute("SELECT title, content FROM news ORDER BY id DESC LIMIT 20")
+    cur.execute("SELECT id, title, content FROM news ORDER BY id DESC LIMIT %s", (limit,))
     rows = cur.fetchall()
     cur.close()
     conn.close()
-    return [{"title": r[0], "content": r[1]} for r in rows]
+    return [{"id": r[0], "title": r[1], "content": r[2]} for r in rows]
