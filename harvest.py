@@ -1,20 +1,17 @@
 import requests
 from bs4 import BeautifulSoup
 from db import insert_news
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from deep_translator import GoogleTranslator
 
-# 用 Google 翻译来“改写”
 def rewrite_text(text):
     if not text:
         return ""
     try:
-        # 英文 -> 中文 -> 英文 反复翻译，起到“改写”效果
+        # 英文 -> 中文 -> 英文，起到免费“改写”效果
         en = GoogleTranslator(source="auto", target="en").translate(text)
         zh = GoogleTranslator(source="en", target="zh-CN").translate(en)
         return zh
-    except Exception as e:
-        print("改写失败:", e)
+    except:
         return text
 
 def fetch_article_content(link, selector):
@@ -41,8 +38,8 @@ def fetch_site_news(url, title_selector, content_selector, limit=5):
             link_tag = item.find("a")
             link = link_tag["href"] if link_tag else None
             news_items.append((title, link, content_selector))
-    except Exception as e:
-        print(f"抓取 {url} 出错:", e)
+    except:
+        pass
     return news_items
 
 def fetch_news():
@@ -54,27 +51,11 @@ def fetch_news():
         ("https://tw.news.yahoo.com/", "h3", "p")
     ]
 
-    news_tasks = []
     for url, title_sel, content_sel in sites:
-        news_tasks.extend(fetch_site_news(url, title_sel, content_sel))
-
-    with ThreadPoolExecutor(max_workers=5) as executor:
-        future_to_news = {
-            executor.submit(
-                lambda t: (rewrite_text(t[0]), rewrite_text(fetch_article_content(t[1], t[2]))),
-                news
-            ): news for news in news_tasks
-        }
-        for future in as_completed(future_to_news):
-            try:
-                title_rw, content_rw = future.result()
-                insert_news(title_rw, content_rw)
-                all_news.append({"title": title_rw, "content": content_rw})
-            except Exception as e:
-                print("处理新闻出错:", e)
+        for title, link, sel in fetch_site_news(url, title_sel, content_sel):
+            title_rw = rewrite_text(title)
+            content_rw = rewrite_text(fetch_article_content(link, sel))
+            insert_news(title_rw, content_rw)
+            all_news.append({"title": title_rw, "content": content_rw})
 
     return all_news
-
-def init_db():
-    from db import init_db
-    init_db()
