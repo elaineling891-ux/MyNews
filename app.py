@@ -1,4 +1,5 @@
-from fastapi import FastAPI, Request
+import asyncio
+from fastapi import FastAPI, Request, BackgroundTasks
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
 from harvest import fetch_news, init_db
@@ -10,10 +11,15 @@ templates = Jinja2Templates(directory="templates")
 news_cache = []
 
 @app.on_event("startup")
-def startup_event():
+async def startup_event():
     global news_cache
     init_db()
-    news_cache = fetch_news()
+    # 🚀 不要阻塞启动，丢给后台跑
+    asyncio.create_task(load_news())
+
+async def load_news():
+    global news_cache
+    news_cache = fetch_news()   # 抓新闻逻辑保持不变
 
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request):
