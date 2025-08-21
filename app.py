@@ -72,6 +72,16 @@ async def check_db():
     except Exception as e:
         return {"tables_exist": False, "error": str(e)}
 
+@app.post("/manual_fetch")
+async def manual_fetch():
+    try:
+        # 异步调用同步抓新闻函数
+        import asyncio
+        new_news = await asyncio.get_event_loop().run_in_executor(None, fetch_news)
+        return {"status": "success", "fetched_count": len(new_news)}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
 # --------------------------
 # Uvicorn 入口
 # --------------------------
