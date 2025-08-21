@@ -1,126 +1,81 @@
 import requests
 from bs4 import BeautifulSoup
 from db import insert_news
-from openai import OpenAI
-import os
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from transformers import pipeline
 
-# 初始化 OpenAI 客户端
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+# 初始化改写模型
+paraphrase = pipeline("text2text-generation", model="Vamsi/T5_Paraphrase_Paws")
 
-# ===== 改写函数（调用 OpenAI API） =====
 def rewrite_text(text):
     if not text:
         return ""
-
     try:
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",  # 可以换成 gpt-4o / gpt-4o-mini
-            messages=[
-                {"role": "system", "content": "你是一个新闻改写助手，请把输入的文字改写成简洁流畅的中文，避免重复。"},
-                {"role": "user", "content": text}
-            ],
-            temperature=0.7,
-            max_tokens=300
-        )
-        return response.choices[0].message.content.strip()
+        result = paraphrase(text, max_length=300, do_sample=True, top_p=0.9, temperature=0.7)
+        return result[0]['generated_text'].strip()
     except Exception as e:
         print("改写失败:", e)
         return text
 
+def fetch_article_content(link, selector):
+    if not link:
+        return ""
+    try:
+        resp = requests.get(link, timeout=10)
+        soup = BeautifulSoup(resp.text, "html.parser")
+        content_tag = soup.select_one(selector)
+        if content_tag:
+            return content_tag.get_text(strip=True)
+    except:
+        pass
+    return ""
 
-# ===== 抓取新闻 =====
+def fetch_site_news(url, title_selector, content_selector, limit=5):
+    news_items = []
+    try:
+        resp = requests.get(url, timeout=10)
+        soup = BeautifulSoup(resp.text, "html.parser")
+        items = soup.select(title_selector)
+        for item in items[:limit]:
+            title = item.get_text(strip=True)
+            link_tag = item.find("a")
+            link = link_tag["href"] if link_tag else None
+            news_items.append((title, link, content_selector))
+    except Exception as e:
+        print(f"抓取 {url} 出错:", e)
+    return news_items
+
 def fetch_news():
-    news_list = []
+    all_news = []
 
-    # ===== 联合新闻网 =====
-    try:
-        url_udn = "https://udn.com/news/index"
-        resp = requests.get(url_udn, timeout=10)
-        soup = BeautifulSoup(resp.text, "html.parser")
-        items = soup.select(".story-list__text")
-        for item in items[:5]:
-            title = item.get_text(strip=True)
-            link_tag = item.find("a")
-            link = link_tag["href"] if link_tag else None
-            content = ""
-            if link:
-                try:
-                    art_resp = requests.get(link, timeout=10)
-                    art_soup = BeautifulSoup(art_resp.text, "html.parser")
-                    content_tag = art_soup.select_one(".article-content p")
-                    if content_tag:
-                        content = content_tag.get_text(strip=True)
-                except:
-                    pass
+    sites = [
+        ("https://udn.com/news/index", ".story-list__text", ".article-content p"),
+        ("https://www.ltn.com.tw", ".title", ".text"),
+        ("https://tw.news.yahoo.com/", "h3", "p")
+    ]
 
-            title_rw = rewrite_text(title)
-            content_rw = rewrite_text(content)
+    # 先抓标题和链接
+    news_tasks = []
+    for url, title_sel, content_sel in sites:
+        news_tasks.extend(fetch_site_news(url, title_sel, content_sel))
 
-            insert_news(title_rw, content_rw)
-            news_list.append({"title": title_rw, "content": content_rw})
-    except Exception as e:
-        print("抓联合新闻网出错:", e)
+    # 并行抓内容 + 改写
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        future_to_news = {
+            executor.submit(
+                lambda t: (rewrite_text(t[0]), rewrite_text(fetch_article_content(t[1], t[2]))),
+                news
+            ): news for news in news_tasks
+        }
+        for future in as_completed(future_to_news):
+            try:
+                title_rw, content_rw = future.result()
+                insert_news(title_rw, content_rw)
+                all_news.append({"title": title_rw, "content": content_rw})
+            except Exception as e:
+                print("处理新闻出错:", e)
 
-    # ===== 自由时报 =====
-    try:
-        url_ltn = "https://www.ltn.com.tw"
-        resp = requests.get(url_ltn, timeout=10)
-        soup = BeautifulSoup(resp.text, "html.parser")
-        items = soup.select(".title")
-        for item in items[:5]:
-            title = item.get_text(strip=True)
-            link_tag = item.find("a")
-            link = link_tag["href"] if link_tag else None
-            content = ""
-            if link:
-                try:
-                    art_resp = requests.get(link, timeout=10)
-                    art_soup = BeautifulSoup(art_resp.text, "html.parser")
-                    content_tag = art_soup.select_one(".text")
-                    if content_tag:
-                        content = content_tag.get_text(strip=True)
-                except:
-                    pass
-
-            title_rw = rewrite_text(title)
-            content_rw = rewrite_text(content)
-
-            insert_news(title_rw, content_rw)
-            news_list.append({"title": title_rw, "content": content_rw})
-    except Exception as e:
-        print("抓自由时报出错:", e)
-
-    # ===== Yahoo 新闻 =====
-    try:
-        url_yahoo = "https://tw.news.yahoo.com/"
-        resp = requests.get(url_yahoo, timeout=10)
-        soup = BeautifulSoup(resp.text, "html.parser")
-        items = soup.select("h3")
-        for item in items[:5]:
-            title = item.get_text(strip=True)
-            link_tag = item.find("a")
-            link = link_tag["href"] if link_tag else None
-            content = ""
-            if link:
-                try:
-                    art_resp = requests.get(link, timeout=10)
-                    art_soup = BeautifulSoup(art_resp.text, "html.parser")
-                    content_tag = art_soup.select_one("p")
-                    if content_tag:
-                        content = content_tag.get_text(strip=True)
-                except:
-                    pass
-
-            title_rw = rewrite_text(title)
-            content_rw = rewrite_text(content)
-
-            insert_news(title_rw, content_rw)
-            news_list.append({"title": title_rw, "content": content_rw})
-    except Exception as e:
-        print("抓 Yahoo 新闻出错:", e)
-
-    return news_list
-
+    return all_news
 
 def init_db():
     from db import init_db
