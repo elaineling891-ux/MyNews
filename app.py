@@ -39,3 +39,6 @@ def news_detail(request: Request, news_id: int):
             "year": datetime.now().year
         })
     return HTMLResponse(content="新闻不存在", status_code=404)
+
+import os
+print("🚀 PORT =", os.environ.get("PORT"))
