@@ -27,10 +27,10 @@ def fetch_article_content(link, selector):
         pass
     return ""
 
-def fetch_site_news(url, title_selector, content_selector, limit=5):
+def fetch_site_news(url, title_selector, content_selector, limit=20):
     news_items = []
     try:
-        resp = requests.get(url, timeout=10)
+        resp = requests.get(url, timeout=40)
         soup = BeautifulSoup(resp.text, "html.parser")
         items = soup.select(title_selector)
         for item in items[:limit]:
