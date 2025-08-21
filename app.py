@@ -1,28 +1,39 @@
+import asyncio
 import os
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
-from db import get_all_news, init_db  # 从数据库读取新闻
+from db import get_all_news, init_db
+from harvest import fetch_news
 from datetime import datetime
 
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
 
 # --------------------------
-# 启动事件：初始化数据库
+# 启动事件：初始化 DB + 异步定时抓新闻
 # --------------------------
 @app.on_event("startup")
 async def startup_event():
-    init_db()  # 初始化表（建表，如果不存在）
-    # ⚠️ 这里可以选择不抓新闻，只显示已有数据库内容
-    # 如果需要后台抓新闻可再加 asyncio.create_task(fetch_news())
+    init_db()
+    asyncio.create_task(periodic_fetch_news(3600))  # 每小时抓一次新闻
+
+async def periodic_fetch_news(interval=3600):
+    while True:
+        try:
+            print("⏳ 开始抓新闻...")
+            await asyncio.get_event_loop().run_in_executor(None, fetch_news)
+            print("✅ 抓新闻完成")
+        except Exception as e:
+            print("抓新闻出错:", e)
+        await asyncio.sleep(interval)
 
 # --------------------------
-# 首页：从数据库读取新闻
+# 首页
 # --------------------------
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
-    news = get_all_news()  # 直接从数据库拉取
+    news = get_all_news()
     return templates.TemplateResponse("index.html", {
         "request": request,
         "news": news,
@@ -34,8 +45,7 @@ async def home(request: Request):
 # --------------------------
 @app.get("/news/{news_id}", response_class=HTMLResponse)
 async def news_detail(request: Request, news_id: int):
-    news_list = get_all_news()  # 从数据库读取
-    for item in news_list:
+    for item in get_all_news():
         if item["id"] == news_id:
             return templates.TemplateResponse("detail.html", {
                 "request": request,
@@ -45,12 +55,11 @@ async def news_detail(request: Request, news_id: int):
     return HTMLResponse(content="新闻不存在", status_code=404)
 
 # --------------------------
-# JSON API：从数据库读取新闻
+# JSON API
 # --------------------------
 @app.get("/api/news", response_class=JSONResponse)
 async def api_news():
-    news = get_all_news()
-    return {"news": news}
+    return {"news": get_all_news()}
 
 # --------------------------
 # 测试数据库连接
