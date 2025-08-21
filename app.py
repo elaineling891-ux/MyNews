@@ -3,35 +3,29 @@ import os
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
+from db import get_all_news, init_db
+from harvest import fetch_news
 from datetime import datetime
-from db import init_db, get_all_news
-from harvest import fetch_news  # 你之前写好的抓新闻函数
 
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
 
-# 缓存新闻
-news_cache = []
-
 # --------------------------
-# 启动事件：初始化数据库 + 定时抓新闻
+# 启动事件：初始化 DB + 异步定时抓新闻
 # --------------------------
 @app.on_event("startup")
 async def startup_event():
-    init_db()
-    # 启动后台定时抓新闻任务
-    asyncio.create_task(periodic_fetch_news(1800))  # 默认每 1800 秒 = 30 分钟
+    init_db()  # 初始化数据库表
+    asyncio.create_task(periodic_fetch_news(1800))  # 每 30 分钟抓一次新闻
 
-async def periodic_fetch_news(interval: int = 1800):
-    global news_cache
+async def periodic_fetch_news(interval=1800):
     while True:
         try:
             print(f"⏳ [{datetime.now()}] 开始抓新闻...")
             await asyncio.get_event_loop().run_in_executor(None, fetch_news)
-            news_cache = get_all_news()  # 更新缓存
-            print(f"✅ [{datetime.now()}] 抓新闻完成，当前新闻条数: {len(news_cache)}")
+            print(f"✅ [{datetime.now()}] 抓新闻完成")
         except Exception as e:
-            print(f"❌ 抓新闻出错: {e}")
+            print("抓新闻出错:", e)
         await asyncio.sleep(interval)
 
 # --------------------------
@@ -39,25 +33,21 @@ async def periodic_fetch_news(interval: int = 1800):
 # --------------------------
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
-    global news_cache
-    if not news_cache:
-        news_cache = get_all_news()
+    news = get_all_news()  # 从数据库获取新闻
     return templates.TemplateResponse("index.html", {
         "request": request,
-        "news": news_cache,
+        "news": news,
         "year": datetime.now().year
     })
 
 # --------------------------
-# 新闻详情页（按数据库 id）
+# 新闻详情页，根据数据库 id
 # --------------------------
 @app.get("/news/{news_id}", response_class=HTMLResponse)
 async def news_detail(request: Request, news_id: int):
-    global news_cache
-    if not news_cache:
-        news_cache = get_all_news()
-    for item in news_cache:
-        if item["id"] == news_id:
+    news_list = get_all_news()
+    for item in news_list:
+        if item["id"] == news_id:  # 用数据库 id 匹配
             return templates.TemplateResponse("detail.html", {
                 "request": request,
                 "news_item": item,
@@ -70,23 +60,7 @@ async def news_detail(request: Request, news_id: int):
 # --------------------------
 @app.get("/api/news", response_class=JSONResponse)
 async def api_news():
-    global news_cache
-    if not news_cache:
-        news_cache = get_all_news()
-    return {"news": news_cache}
-
-# --------------------------
-# 手动抓新闻接口
-# --------------------------
-@app.post("/manual_fetch")
-async def manual_fetch():
-    global news_cache
-    try:
-        new_news = await asyncio.get_event_loop().run_in_executor(None, fetch_news)
-        news_cache = get_all_news()  # 更新缓存
-        return {"status": "success", "fetched_count": len(new_news)}
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
+    return {"news": get_all_news()}
 
 # --------------------------
 # 测试数据库连接
@@ -98,6 +72,17 @@ async def check_db():
         return {"tables_exist": True, "news_count": len(news)}
     except Exception as e:
         return {"tables_exist": False, "error": str(e)}
+
+# --------------------------
+# 手动抓新闻接口
+# --------------------------
+@app.post("/manual_fetch")
+async def manual_fetch():
+    try:
+        new_news = await asyncio.get_event_loop().run_in_executor(None, fetch_news)
+        return {"status": "success", "fetched_count": len(new_news)}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
 # --------------------------
 # Uvicorn 入口
