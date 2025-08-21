@@ -1,39 +1,34 @@
 import requests
 from bs4 import BeautifulSoup
 from db import insert_news
-from transformers import pipeline
-from deep_translator import GoogleTranslator
+from openai import OpenAI
+import os
 
-# 初始化 Hugging Face 改写模型
-paraphrase = pipeline("text2text-generation", model="Vamsi/T5_Paraphrase_Paws")
+# 初始化 OpenAI 客户端
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-# 初始化翻译器
+# ===== 改写函数（调用 OpenAI API） =====
+def rewrite_text(text):
+    if not text:
+        return ""
 
-
-def translate_to_zh(text):
     try:
-        return GoogleTranslator(source='auto', target='zh-CN').translate(text)
-    except:
-        return text
-
-def rewrite_and_translate(text):
-    # 改写
-    try:
-        result = paraphrase(text, max_length=256, do_sample=True, top_k=50)
-        rewritten = result[0]['generated_text']
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",  # 可以换成 gpt-4o / gpt-4o-mini
+            messages=[
+                {"role": "system", "content": "你是一个新闻改写助手，请把输入的文字改写成简洁流畅的中文，避免重复。"},
+                {"role": "user", "content": text}
+            ],
+            temperature=0.7,
+            max_tokens=300
+        )
+        return response.choices[0].message.content.strip()
     except Exception as e:
         print("改写失败:", e)
-        rewritten = text
+        return text
 
-    # 翻译成简体中文
-    try:
-        simplified = translate_to_zh(rewritten)
-    except Exception as e:
-        print("翻译失败:", e)
-        simplified = rewritten
 
-    return simplified
-
+# ===== 抓取新闻 =====
 def fetch_news():
     news_list = []
 
@@ -42,7 +37,7 @@ def fetch_news():
         url_udn = "https://udn.com/news/index"
         resp = requests.get(url_udn, timeout=10)
         soup = BeautifulSoup(resp.text, "html.parser")
-        items = soup.select(".story-list__text")  # 联合新闻网新闻列表选择器
+        items = soup.select(".story-list__text")
         for item in items[:5]:
             title = item.get_text(strip=True)
             link_tag = item.find("a")
@@ -52,14 +47,14 @@ def fetch_news():
                 try:
                     art_resp = requests.get(link, timeout=10)
                     art_soup = BeautifulSoup(art_resp.text, "html.parser")
-                    content_tag = art_soup.select_one(".article-content p")  # 内容选择器
+                    content_tag = art_soup.select_one(".article-content p")
                     if content_tag:
                         content = content_tag.get_text(strip=True)
                 except:
                     pass
 
-            title_rw = rewrite_and_translate(title)
-            content_rw = rewrite_and_translate(content)
+            title_rw = rewrite_text(title)
+            content_rw = rewrite_text(content)
 
             insert_news(title_rw, content_rw)
             news_list.append({"title": title_rw, "content": content_rw})
@@ -71,7 +66,7 @@ def fetch_news():
         url_ltn = "https://www.ltn.com.tw"
         resp = requests.get(url_ltn, timeout=10)
         soup = BeautifulSoup(resp.text, "html.parser")
-        items = soup.select(".title")  # 自由时报标题选择器
+        items = soup.select(".title")
         for item in items[:5]:
             title = item.get_text(strip=True)
             link_tag = item.find("a")
@@ -81,26 +76,26 @@ def fetch_news():
                 try:
                     art_resp = requests.get(link, timeout=10)
                     art_soup = BeautifulSoup(art_resp.text, "html.parser")
-                    content_tag = art_soup.select_one(".text")  # 内容选择器
+                    content_tag = art_soup.select_one(".text")
                     if content_tag:
                         content = content_tag.get_text(strip=True)
                 except:
                     pass
 
-            title_rw = rewrite_and_translate(title)
-            content_rw = rewrite_and_translate(content)
+            title_rw = rewrite_text(title)
+            content_rw = rewrite_text(content)
 
             insert_news(title_rw, content_rw)
             news_list.append({"title": title_rw, "content": content_rw})
     except Exception as e:
         print("抓自由时报出错:", e)
 
-    # ===== Yahoo 新闻华语 =====
+    # ===== Yahoo 新闻 =====
     try:
         url_yahoo = "https://tw.news.yahoo.com/"
         resp = requests.get(url_yahoo, timeout=10)
         soup = BeautifulSoup(resp.text, "html.parser")
-        items = soup.select("h3")  # Yahoo 新闻标题选择器
+        items = soup.select("h3")
         for item in items[:5]:
             title = item.get_text(strip=True)
             link_tag = item.find("a")
@@ -110,14 +105,14 @@ def fetch_news():
                 try:
                     art_resp = requests.get(link, timeout=10)
                     art_soup = BeautifulSoup(art_resp.text, "html.parser")
-                    content_tag = art_soup.select_one("p")  # 内容选择器
+                    content_tag = art_soup.select_one("p")
                     if content_tag:
                         content = content_tag.get_text(strip=True)
                 except:
                     pass
 
-            title_rw = rewrite_and_translate(title)
-            content_rw = rewrite_and_translate(content)
+            title_rw = rewrite_text(title)
+            content_rw = rewrite_text(content)
 
             insert_news(title_rw, content_rw)
             news_list.append({"title": title_rw, "content": content_rw})
@@ -125,6 +120,7 @@ def fetch_news():
         print("抓 Yahoo 新闻出错:", e)
 
     return news_list
+
 
 def init_db():
     from db import init_db
