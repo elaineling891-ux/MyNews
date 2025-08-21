@@ -55,7 +55,7 @@ def fetch_news():
         for title, link, sel in fetch_site_news(url, title_sel, content_sel):
             title_rw = rewrite_text(title)
             content_rw = rewrite_text(fetch_article_content(link, sel))
-            insert_news(title_rw, content_rw)
+            insert_news(title_rw, content_rw, link)
             all_news.append({"title": title_rw, "content": content_rw})
 
     return all_news
