@@ -33,3 +33,12 @@ def insert_news(title, content):
     cur.close()
     conn.close()
     print(f"✅ 已写入: {title[:20]}...")
+
+def get_all_news():
+    conn = psycopg2.connect(DB_URL)
+    cur = conn.cursor()
+    cur.execute("SELECT title, content FROM news ORDER BY id DESC LIMIT 20")
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+    return [{"title": r[0], "content": r[1]} for r in rows]
