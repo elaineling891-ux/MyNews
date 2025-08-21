@@ -9,11 +9,6 @@ def init_db():
     cur.execute("""
         CREATE TABLE IF NOT EXISTS news (
             id SERIAL PRIMARY KEY,
-            title TEXT,
-            content TEXT,
-            created_at TIMESTAMP DEFAULT NOW()
-        CREATE TABLE IF NOT EXISTS news (
-            id SERIAL PRIMARY KEY,
             title TEXT NOT NULL,
             content TEXT,
             link TEXT,
