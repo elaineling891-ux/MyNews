@@ -32,7 +32,7 @@ def insert_news(title, content):
 def get_all_news(limit=20):
     conn = psycopg2.connect(DB_URL)
     cur = conn.cursor()
-    cur.execute("SELECT id, title, content FROM news ORDER BY id DESC LIMIT %s", (limit,))
+    cur.execute("SELECT id, title, content, created_at FROM news ORDER BY created_at DESC LIMIT %s", (limit,))
     rows = cur.fetchall()
     cur.close()
     conn.close()
