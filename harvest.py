@@ -2,17 +2,17 @@ import requests
 from bs4 import BeautifulSoup
 from db import insert_news
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from transformers import pipeline
+from deep_translator import GoogleTranslator
 
-# 初始化改写模型
-paraphrase = pipeline("text2text-generation", model="Vamsi/T5_Paraphrase_Paws")
-
+# 用 Google 翻译来“改写”
 def rewrite_text(text):
     if not text:
         return ""
     try:
-        result = paraphrase(text, max_length=300, do_sample=True, top_p=0.9, temperature=0.7)
-        return result[0]['generated_text'].strip()
+        # 英文 -> 中文 -> 英文 反复翻译，起到“改写”效果
+        en = GoogleTranslator(source="auto", target="en").translate(text)
+        zh = GoogleTranslator(source="en", target="zh-CN").translate(en)
+        return zh
     except Exception as e:
         print("改写失败:", e)
         return text
@@ -54,12 +54,10 @@ def fetch_news():
         ("https://tw.news.yahoo.com/", "h3", "p")
     ]
 
-    # 先抓标题和链接
     news_tasks = []
     for url, title_sel, content_sel in sites:
         news_tasks.extend(fetch_site_news(url, title_sel, content_sel))
 
-    # 并行抓内容 + 改写
     with ThreadPoolExecutor(max_workers=5) as executor:
         future_to_news = {
             executor.submit(
