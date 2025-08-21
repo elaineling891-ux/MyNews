@@ -40,18 +40,18 @@ async def home(request: Request):
         "year": datetime.now().year
     })
 
-# --------------------------
-# 新闻详情页
-# --------------------------
-@app.get("/news/{news_id}", response_class=HTMLResponse)
-async def news_detail(request: Request, news_id: int):
-    for item in get_all_news():
-        if item["id"] == news_id:
-            return templates.TemplateResponse("detail.html", {
-                "request": request,
-                "news_item": item,
-                "year": datetime.now().year
-            })
+from db import get_all_news
+
+@app.get("/news/{index}", response_class=HTMLResponse)
+async def news_detail(request: Request, index: int):
+    news_list = get_all_news()  # 按 created_at DESC 排序
+    if 0 <= index < len(news_list):
+        news_item = news_list[index]
+        return templates.TemplateResponse("detail.html", {
+            "request": request,
+            "news_item": news_item,
+            "year": datetime.now().year
+        })
     return HTMLResponse(content="新闻不存在", status_code=404)
 
 # --------------------------
