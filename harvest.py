@@ -5,26 +5,37 @@ import time
 from urllib.parse import urljoin
 import os
 
-DEEPAI_API_KEY = os.getenv("DEEPAI_API_KEY")  # DeepAI API Key
+AI21_API_KEY = os.getenv("AI21_API_KEY")  # AI21 Studio API Key
+AI21_MODEL = "j2-large"  # 可根据需求选择 j2-large, j2-grande 等
 
 # --------------------------
-# 调用 DeepAI 改写
+# 调用 AI21 Studio 改写
 # --------------------------
-def rewrite_text_deepai(text):
+def rewrite_text_ai21(text):
     if not text:
         return text
-    url = "https://api.deepai.org/api/gpt"
-    headers = {"api-key": DEEPAI_API_KEY}
+    url = f"https://api.ai21.com/studio/v1/{AI21_MODEL}/complete"
+    headers = {
+        "Authorization": f"Bearer {AI21_API_KEY}",
+        "Content-Type": "application/json"
+    }
+    prompt = f"请帮我改写以下内容，保持意思不变，但用不同表达方式：\n\n{text}"
+    data = {
+        "prompt": prompt,
+        "maxTokens": 800,
+        "temperature": 0.7,
+        "topP": 1,
+        "stopSequences": []
+    }
     try:
-        prompt = f"请帮我改写以下内容，保持意思不变，但用不同表达方式：\n\n{text}"
-        resp = requests.post(url, data={"text": prompt}, headers=headers, timeout=20)
+        resp = requests.post(url, json=data, headers=headers, timeout=20)
         resp.raise_for_status()
-        data = resp.json()
-        if "output" in data:
-            return data["output"]
+        output = resp.json()
+        if "completions" in output and len(output["completions"]) > 0:
+            return output["completions"][0]["data"]["text"].strip()
         return text
     except Exception as e:
-        print("DeepAI GPT 改写失败:", e)
+        print("AI21 Studio 改写失败:", e)
         return text
 
 # --------------------------
@@ -39,11 +50,11 @@ def add_linebreaks(text, n_sentences=3):
     return "\n\n".join(lines)
 
 def rewrite_text(text):
-    rewritten = rewrite_text_deepai(text)
+    rewritten = rewrite_text_ai21(text)
     return add_linebreaks(rewritten)
 
 # --------------------------
-# 抓文章内容
+# 以下抓取文章内容、图片、网站新闻等保持不变
 # --------------------------
 def fetch_article_content(link):
     if not link:
@@ -69,9 +80,6 @@ def fetch_article_content(link):
         print(f"抓文章内容失败 ({link}): {e}")
     return ""
 
-# --------------------------
-# 抓文章主图
-# --------------------------
 def fetch_article_image(link):
     if not link:
         return None
@@ -105,9 +113,6 @@ def fetch_article_image(link):
         print(f"抓文章图片失败 ({link}): {e}")
     return None
 
-# --------------------------
-# 抓网站新闻标题和链接
-# --------------------------
 def fetch_site_news(url, limit=20):
     news_items = []
     try:
@@ -133,9 +138,6 @@ def fetch_site_news(url, limit=20):
         print(f"抓 {url} 出错: {e}")
     return news_items
 
-# --------------------------
-# 抓所有新闻，改写并插入数据库
-# --------------------------
 def fetch_news():
     all_news = []
     sites = [
