@@ -7,3 +7,4 @@ jinja2
 aiofiles
 deep-translator
 transformers
+torch
