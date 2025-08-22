@@ -28,8 +28,10 @@ def rewrite_text_cohere(text):
         if resp.status_code == 200:
             data = resp.json()
             if "generations" in data and len(data["generations"]) > 0:
-                return data["generations"][0]["text"].strip()
-         print(f"改写成功...")
+               rewritten = data["generations"][0]["text"].strip()
+                print("改写成功 ✅")   # <--- 在这里打印
+                return rewritten
+         
     except Exception as e:
         print("Cohere 改写失败:", e)
     
