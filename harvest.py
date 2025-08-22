@@ -25,12 +25,12 @@ def rewrite_text_cohere(text):
             "temperature": 0.7
         }
         resp = requests.post(COHERE_URL, headers=headers, json=payload, timeout=30)
-       print("请求状态码:", resp.status_code, "✅")
+        print("请求状态码:", resp.status_code, "✅")   # ✅ 注意这里缩进对齐
         if resp.status_code == 200:
             data = resp.json()
             if "generations" in data and len(data["generations"]) > 0:
                 rewritten = data["generations"][0]["text"].strip()
-                print("改写成功 ✅")   # 正确缩进
+                print("改写成功 ✅")
                 return rewritten
     except Exception as e:
         print("Cohere 改写失败:", e)
