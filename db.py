@@ -12,6 +12,7 @@ def init_db():
         title TEXT NOT NULL,
         content TEXT,
         link TEXT,
+        image_url TEXT,
         created_at TIMESTAMP DEFAULT NOW(),
         UNIQUE(title),
         UNIQUE(link)
@@ -22,14 +23,14 @@ def init_db():
     conn.close()
     print("✅ 数据库初始化完成")
 
-def insert_news(title, content, link=None):
+def insert_news(title, content, link=None, image_url=None):
     conn = psycopg2.connect(DB_URL)
     cur = conn.cursor()
     cur.execute("""
-        INSERT INTO news (title, content, link)
-        VALUES (%s, %s, %s)
+        INSERT INTO news (title, content, link, image_url)
+        VALUES (%s, %s, %s, %s)
         ON CONFLICT (link) DO NOTHING
-    """, (title, content, link))
+    """, (title, content, link, image_url))
     conn.commit()
     cur.close()
     conn.close()
