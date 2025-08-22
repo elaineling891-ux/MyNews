@@ -1,18 +1,33 @@
 import requests
+import os
 from bs4 import BeautifulSoup
 from db import insert_news, news_exists
 from deep_translator import GoogleTranslator
 import time
 from urllib.parse import urljoin
 
-def rewrite_text(text):
+HF_API_TOKEN = os.getenv("HF_API_TOKEN")  # 把你生成的 Token 存在环境变量
+
+def rewrite_text_hf(text):
+    """使用 Hugging Face Inference API 改写文本"""
     if not text:
         return ""
+    API_URL = "https://api-inference.huggingface.co/models/Vamsi/T5_Paraphrase_Paws"
+    headers = {"Authorization": f"Bearer {HF_API_TOKEN}"}
+    payload = {
+        "inputs": text,
+        "parameters": {"max_length": 512, "do_sample": False}
+    }
     try:
-        en = GoogleTranslator(source="auto", target="en").translate(text)
-        zh = GoogleTranslator(source="en", target="zh-CN").translate(en)
-        return zh
-    except:
+        response = requests.post(API_URL, headers=headers, json=payload, timeout=20)
+        response.raise_for_status()
+        data = response.json()
+        # 返回生成文本
+        if isinstance(data, list) and "generated_text" in data[0]:
+            return data[0]["generated_text"]
+        return text
+    except Exception as e:
+        print("Hugging Face 改写失败:", e)
         return text
 
 # --------------------------
@@ -133,8 +148,8 @@ def fetch_news():
             if not content:
                 continue
             image_url = fetch_article_image(link)
-            title_rw = rewrite_text(title)
-            content_rw = rewrite_text(content)
+            title_rw = rewrite_text_hf(title)
+            content_rw = rewrite_text_hf(content)
             try:
                 insert_news(title_rw, content_rw, link, image_url)
                 all_news.append({"title": title_rw, "content": content_rw, "link": link})
