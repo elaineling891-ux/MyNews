@@ -1,15 +1,17 @@
 import requests
-import os
 from bs4 import BeautifulSoup
 from db import insert_news, news_exists
-from deep_translator import GoogleTranslator
 import time
 from urllib.parse import urljoin
+import os
 
-HF_API_TOKEN = os.getenv("HF_API_TOKEN")  # 把你生成的 Token 存在环境变量
+HF_API_TOKEN = os.getenv("HF_API_TOKEN")  # 你的 Hugging Face Token
 
+# --------------------------
+# 调用 Hugging Face Inference API 改写
+# --------------------------
 def rewrite_text_hf(text):
-    """使用 Hugging Face Inference API 改写文本"""
+    """改写文本并返回字符串"""
     if not text:
         return ""
     API_URL = "https://api-inference.huggingface.co/models/Vamsi/T5_Paraphrase_Paws"
@@ -19,16 +21,30 @@ def rewrite_text_hf(text):
         "parameters": {"max_length": 512, "do_sample": False}
     }
     try:
-        response = requests.post(API_URL, headers=headers, json=payload, timeout=20)
+        response = requests.post(API_URL, headers=headers, json=payload, timeout=30)
         response.raise_for_status()
         data = response.json()
-        # 返回生成文本
         if isinstance(data, list) and "generated_text" in data[0]:
             return data[0]["generated_text"]
         return text
     except Exception as e:
         print("Hugging Face 改写失败:", e)
         return text
+
+# --------------------------
+# 后处理：添加换行，每3句换一次行
+# --------------------------
+def add_linebreaks(text, n_sentences=3):
+    import re
+    sentences = re.split(r'(?<=[。！？])', text)
+    lines = []
+    for i in range(0, len(sentences), n_sentences):
+        lines.append("".join(sentences[i:i+n_sentences]))
+    return "\n\n".join(lines)
+
+def rewrite_text(text):
+    rewritten = rewrite_text_hf(text)
+    return add_linebreaks(rewritten)
 
 # --------------------------
 # 抓文章内容
@@ -41,13 +57,10 @@ def fetch_article_content(link):
         soup = BeautifulSoup(resp.text, "html.parser")
 
         if "udn.com" in link:
-            # UDN 内容在 div#story_body_content
             div = soup.select_one("div#story_body_content")
         elif "ltn.com" in link:
-            # LTN 内容在 div.text p
             div = soup.select_one("div.text")
         elif "yahoo.com" in link:
-            # Yahoo 内容在 article p
             div = soup.select_one("article")
         else:
             div = None
@@ -60,37 +73,34 @@ def fetch_article_content(link):
         print(f"抓文章内容失败 ({link}): {e}")
     return ""
 
+# --------------------------
+# 抓文章主图
+# --------------------------
 def fetch_article_image(link):
-    """抓新闻文章主图"""
     if not link:
         return None
     try:
         resp = requests.get(link, timeout=15)
         soup = BeautifulSoup(resp.text, "html.parser")
-
         img_url = None
 
         if "udn.com" in link:
-            # UDN 抓正文第一张图片
             div = soup.select_one("div#story_body_content")
             if div:
                 img = div.find("img")
                 if img:
                     img_url = img.get("data-src") or img.get("src")
         elif "ltn.com" in link:
-            # LTN 抓正文第一张图片
             div = soup.select_one("div.text")
             if div:
                 img = div.find("img")
                 if img:
                     img_url = img.get("src")
         elif "yahoo.com" in link:
-            # Yahoo 新闻主图在 meta[property="og:image"]
             meta = soup.select_one('meta[property="og:image"]')
             if meta:
                 img_url = meta.get("content")
 
-        # 补全相对路径
         if img_url and img_url.startswith("/"):
             img_url = urljoin(link, img_url)
 
@@ -140,19 +150,17 @@ def fetch_news():
 
     for url in sites:
         for title, link in fetch_site_news(url, limit=20):
-            if not link:
-                continue
-            if news_exists(link):
+            if not link or news_exists(link):
                 continue
             content = fetch_article_content(link)
             if not content:
                 continue
             image_url = fetch_article_image(link)
-            title_rw = rewrite_text_hf(title)
-            content_rw = rewrite_text_hf(content)
+            title_rw = rewrite_text(title)
+            content_rw = rewrite_text(content)
             try:
                 insert_news(title_rw, content_rw, link, image_url)
-                all_news.append({"title": title_rw, "content": content_rw, "link": link})
+                all_news.append({"title": title_rw, "content": content_rw, "link": link, "image_url": image_url})
                 print(f"插入成功: {title_rw[:30]}...")
             except Exception as e:
                 print(f"插入失败: {e}")
