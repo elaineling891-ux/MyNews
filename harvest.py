@@ -14,7 +14,7 @@ AI21_MODEL = "j2-large"  # 可根据需求选择 j2-large, j2-grande 等
 def rewrite_text_jamba(text):
     if not text:
         return text
-    url = "https://api.ai21.com/studio/v1/jamba-large-1.7-2025-07/complete"
+    url = "https://api.ai21.com/studio/v1/jamba-large/complete"
     headers = {
         "Authorization": f"Bearer {AI21_API_KEY}",
         "Content-Type": "application/json"
