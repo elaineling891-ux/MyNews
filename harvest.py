@@ -5,16 +5,16 @@ import time
 from urllib.parse import urljoin
 import os
 
-HF_API_TOKEN = os.getenv("HF_API_TOKEN")  # 你的 Hugging Face Token
+HF_API_TOKEN = os.getenv("HF_API_TOKEN")  # Hugging Face Token
 
 # --------------------------
-# 调用 Hugging Face Inference API 改写
+# 调用 Hugging Face 公共模型改写
 # --------------------------
 def rewrite_text_hf(text):
-    """改写文本并返回字符串"""
+    """使用公开模型 tuner007/pegasus_paraphrase 改写文本"""
     if not text:
         return ""
-    API_URL = "https://api-inference.huggingface.co/models/Vamsi/T5_Paraphrase_Paws"
+    API_URL = "https://api-inference.huggingface.co/models/tuner007/pegasus_paraphrase"
     headers = {"Authorization": f"Bearer {HF_API_TOKEN}"}
     payload = {
         "inputs": text,
@@ -160,7 +160,12 @@ def fetch_news():
             content_rw = rewrite_text(content)
             try:
                 insert_news(title_rw, content_rw, link, image_url)
-                all_news.append({"title": title_rw, "content": content_rw, "link": link, "image_url": image_url})
+                all_news.append({
+                    "title": title_rw,
+                    "content": content_rw,
+                    "link": link,
+                    "image_url": image_url
+                })
                 print(f"插入成功: {title_rw[:30]}...")
             except Exception as e:
                 print(f"插入失败: {e}")
