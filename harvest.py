@@ -11,10 +11,10 @@ AI21_MODEL = "j2-large"  # 可根据需求选择 j2-large, j2-grande 等
 # --------------------------
 # 调用 AI21 Studio 改写
 # --------------------------
-def rewrite_text_ai21(text):
+def rewrite_text_jamba(text):
     if not text:
         return text
-    url = "https://api.ai21.com/studio/v1/j2-large/complete"
+    url = "https://api.ai21.com/studio/v1/jamba-large-1.7-2025-07/complete"
     headers = {
         "Authorization": f"Bearer {AI21_API_KEY}",
         "Content-Type": "application/json"
@@ -32,12 +32,11 @@ def rewrite_text_ai21(text):
         resp = requests.post(url, json=data, headers=headers, timeout=20)
         resp.raise_for_status()
         output = resp.json()
-        # 官方返回格式是 output['completions'][0]['data']['text']
         if "completions" in output and len(output["completions"]) > 0:
             return output["completions"][0]["data"]["text"].strip()
         return text
     except Exception as e:
-        print("AI21 Studio 改写失败:", e)
+        print("Jamba 改写失败:", e)
         return text
 
 # --------------------------
@@ -52,7 +51,7 @@ def add_linebreaks(text, n_sentences=3):
     return "\n\n".join(lines)
 
 def rewrite_text(text):
-    rewritten = rewrite_text_ai21(text)
+    rewritten = rewrite_text_jamba(text)
     return add_linebreaks(rewritten)
 
 # --------------------------
