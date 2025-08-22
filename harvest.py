@@ -14,7 +14,7 @@ AI21_MODEL = "j2-large"  # 可根据需求选择 j2-large, j2-grande 等
 def rewrite_text_ai21(text):
     if not text:
         return text
-    url = f"https://api.ai21.com/studio/v1/{AI21_MODEL}/complete"
+    url = "https://api.ai21.com/studio/v1/j2-large/complete"
     headers = {
         "Authorization": f"Bearer {AI21_API_KEY}",
         "Content-Type": "application/json"
@@ -22,6 +22,7 @@ def rewrite_text_ai21(text):
     prompt = f"请帮我改写以下内容，保持意思不变，但用不同表达方式：\n\n{text}"
     data = {
         "prompt": prompt,
+        "numResults": 1,
         "maxTokens": 800,
         "temperature": 0.7,
         "topP": 1,
@@ -31,6 +32,7 @@ def rewrite_text_ai21(text):
         resp = requests.post(url, json=data, headers=headers, timeout=20)
         resp.raise_for_status()
         output = resp.json()
+        # 官方返回格式是 output['completions'][0]['data']['text']
         if "completions" in output and len(output["completions"]) > 0:
             return output["completions"][0]["data"]["text"].strip()
         return text
