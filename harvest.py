@@ -3,41 +3,24 @@ from bs4 import BeautifulSoup
 from db import insert_news, news_exists
 import time
 from urllib.parse import urljoin
-import os
-
-AI21_API_KEY = os.getenv("AI21_API_KEY")  # AI21 Studio API Key
-AI21_MODEL = "j2-large"  # 可根据需求选择 j2-large, j2-grande 等
+from transformers import pipeline
 
 # --------------------------
-# 调用 AI21 Studio 改写
+# 初始化 Hugging Face T5 改写模型
 # --------------------------
-def rewrite_text_jamba(text):
+paraphraser = pipeline("text2text-generation", model="Vamsi/T5_Paraphrase_Paws")
+
+def rewrite_text_t5(text):
     if not text:
         return text
-    url = "https://api.ai21.com/studio/v1/jamba-large/complete"
-    headers = {
-        "Authorization": f"Bearer {AI21_API_KEY}",
-        "Content-Type": "application/json"
-    }
-    prompt = f"请帮我改写以下内容，保持意思不变，但用不同表达方式：\n\n{text}"
-    data = {
-        "prompt": prompt,
-        "numResults": 1,
-        "maxTokens": 800,
-        "temperature": 0.7,
-        "topP": 1,
-        "stopSequences": []
-    }
     try:
-        resp = requests.post(url, json=data, headers=headers, timeout=20)
-        resp.raise_for_status()
-        output = resp.json()
-        if "completions" in output and len(output["completions"]) > 0:
-            return output["completions"][0]["data"]["text"].strip()
-        return text
+        prompt = f"paraphrase: {text} </s>"
+        result = paraphraser(prompt, max_length=512, num_return_sequences=1, temperature=0.7)
+        if result and "generated_text" in result[0]:
+            return result[0]["generated_text"].strip()
     except Exception as e:
-        print("Jamba 改写失败:", e)
-        return text
+        print("T5 改写失败:", e)
+    return text
 
 # --------------------------
 # 后处理：添加换行，每3句换一次行
@@ -51,7 +34,7 @@ def add_linebreaks(text, n_sentences=3):
     return "\n\n".join(lines)
 
 def rewrite_text(text):
-    rewritten = rewrite_text_jamba(text)
+    rewritten = rewrite_text_t5(text)
     return add_linebreaks(rewritten)
 
 # --------------------------
