@@ -1,56 +1,38 @@
-import psycopg2
-import os
+import sqlite3
 
-DB_URL = os.getenv("DATABASE_URL")
+DB_NAME = "news.db"
 
 def init_db():
-    conn = psycopg2.connect(DB_URL)
-    cur = conn.cursor()
-    cur.execute("""
-    CREATE TABLE IF NOT EXISTS news (
-        id SERIAL PRIMARY KEY,
-        title TEXT NOT NULL,
-        content TEXT,
-        link TEXT,
-        created_at TIMESTAMP DEFAULT NOW(),
-        UNIQUE(title),
-        UNIQUE(link)
-    )
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    # 增加 image_url 字段
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS news (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT,
+            content TEXT,
+            image_url TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
     """)
     conn.commit()
-    cur.close()
     conn.close()
-    print("✅ 数据库初始化完成")
 
-def insert_news(title, content, link=None):
-    conn = psycopg2.connect(DB_URL)
-    cur = conn.cursor()
-    cur.execute("""
-        INSERT INTO news (title, content, link)
-        VALUES (%s, %s, %s)
-        ON CONFLICT (link) DO NOTHING
-    """, (title, content, link))
+def insert_news(title, content, image_url=None):
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute("INSERT INTO news (title, content, image_url) VALUES (?, ?, ?)", 
+              (title, content, image_url))
     conn.commit()
-    cur.close()
     conn.close()
 
-def get_all_news(limit=20):
-    conn = psycopg2.connect(DB_URL)
-    cur = conn.cursor()
-    cur.execute("SELECT id, title, content, created_at FROM news ORDER BY created_at DESC LIMIT %s", (limit,))
-    rows = cur.fetchall()
-    cur.close()
+def get_all_news():
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute("SELECT id, title, content, image_url, created_at FROM news ORDER BY id DESC")
+    rows = c.fetchall()
     conn.close()
-    return [{"id": r[0], "title": r[1], "content": r[2]} for r in rows]
-
-def news_exists(link: str) -> bool:
-    """检查数据库里是否已经有这个链接"""
-    if not link:
-        return False
-    conn = psycopg2.connect(DB_URL)
-    cur = conn.cursor()
-    cur.execute("SELECT 1 FROM news WHERE link=%s LIMIT 1", (link,))
-    exists = cur.fetchone() is not None
-    cur.close()
-    conn.close()
-    return exists
+    return [
+        {"id": r[0], "title": r[1], "content": r[2], "image_url": r[3], "created_at": r[4]}
+        for r in rows
+    ]
