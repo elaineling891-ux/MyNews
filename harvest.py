@@ -46,28 +46,31 @@ def fetch_article_content(link):
     return ""
 
 def fetch_article_image(link):
+    """抓文章正文里的第一张图片"""
     if not link:
         return None
     try:
         resp = requests.get(link, timeout=15)
         soup = BeautifulSoup(resp.text, "html.parser")
 
+        # 默认没有图片
         img_url = None
+
         if "udn.com" in link:
-            img = soup.select_one("div#story_body_content img")
+            div = soup.select_one("div#story_body_content")
+        elif "ltn.com" in link:
+            div = soup.select_one("div.text")
+        elif "yahoo.com" in link:
+            div = soup.select_one("article")
+        else:
+            div = None
+
+        if div:
+            img = div.find("img")
             if img:
                 img_url = img.get("data-src") or img.get("src")
-        elif "ltn.com" in link:
-            img = soup.select_one("div.text img")
-            if img:
-                img_url = img.get("src")
-        elif "yahoo.com" in link:
-            img = soup.select_one("article img")
-            if img:
-                img_url = img.get("src")
-
-        if img_url and img_url.startswith("/"):
-            img_url = urljoin(link, img_url)
+                if img_url and img_url.startswith("/"):
+                    img_url = urljoin(link, img_url)
         return img_url
     except Exception as e:
         print(f"抓文章图片失败 ({link}): {e}")
@@ -121,7 +124,7 @@ def fetch_news():
             content = fetch_article_content(link)
             if not content:
                 continue
-            image_url = fetch_article_image(link)  # 新增
+            image_url = fetch_article_image(link)
             title_rw = rewrite_text(title)
             content_rw = rewrite_text(content)
             try:
