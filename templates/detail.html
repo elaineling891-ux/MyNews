@@ -28,7 +28,7 @@
   {% if news_item.image_url %}
     <img src="{{ news_item.image_url }}" alt="新闻图" class="news-image">
   {% endif %}
-  <p>{{ news_item.content }}</p>
+  <p>{{ news_item.content | replace("\n", "<br>") | safe }}</p>
 </div>
 
 <footer>
