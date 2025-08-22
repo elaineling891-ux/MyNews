@@ -1,55 +1,176 @@
 import requests
 from bs4 import BeautifulSoup
-from db import insert_news
-from deep_translator import GoogleTranslator
+from db import insert_news, news_exists
+import time
+from urllib.parse import urljoin
 import os
 
-# 从环境变量获取 DeepAI API Key
-DEEPAI_API_KEY = os.getenv("DEEPAI_API_KEY")
+DEEPAI_API_KEY = os.getenv("DEEPAI_API_KEY")  # DeepAI API Key
 
-# 改写函数：调用 DeepAI Text Paraphrasing API
-def paraphrase_text(text):
-    if not DEEPAI_API_KEY:
-        print("❌ DeepAI API key not found. Returning original text.")
-        return text
-
+# --------------------------
+# 调用 DeepAI 改写
+# --------------------------
+def rewrite_text_deepai(text):
+    """使用 DeepAI API 改写文本"""
+    if not text:
+        return ""
+    url = "https://api.deepai.org/api/text-paraphraser"
+    headers = {
+        "api-key": DEEPAI_API_KEY
+    }
+    payload = {
+        "text": text
+    }
     try:
-        response = requests.post(
-            "https://api.deepai.org/api/text-paraphraser",
-            data={'text': text},
-            headers={'api-key': DEEPAI_API_KEY}
-        )
-        response.raise_for_status()
-        result = response.json()
-        return result.get("output", text)  # DeepAI 返回 "output" 字段
+        resp = requests.post(url, headers=headers, data=payload, timeout=15)
+        resp.raise_for_status()
+        data = resp.json()
+        # DeepAI 返回结果在 "output" 里，通常是字符串或列表
+        if isinstance(data.get("output"), list):
+            return " ".join(data["output"])
+        return data.get("output", text)
     except Exception as e:
-        print(f"⚠️ DeepAI 改写失败: {e}, 使用原始文本")
+        print("DeepAI 改写失败:", e)
         return text
 
-# 爬取新闻并保存
-def harvest_news(url):
-    res = requests.get(url)
-    soup = BeautifulSoup(res.text, 'html.parser')
+# --------------------------
+# 后处理：添加换行，每3句换一次行
+# --------------------------
+def add_linebreaks(text, n_sentences=3):
+    import re
+    sentences = re.split(r'(?<=[。！？.!?])', text)
+    lines = []
+    for i in range(0, len(sentences), n_sentences):
+        lines.append("".join(sentences[i:i+n_sentences]))
+    return "\n\n".join(lines)
 
-    title = soup.select_one("h1").get_text(strip=True)
-    paragraphs = [p.get_text(strip=True) for p in soup.select("p")]
-    content = "\n\n".join(paragraphs)  # 保持分段
+def rewrite_text(text):
+    rewritten = rewrite_text_deepai(text)
+    return add_linebreaks(rewritten)
 
-    # 改写内容
-    rewritten = paraphrase_text(content)
+# --------------------------
+# 抓文章内容
+# --------------------------
+def fetch_article_content(link):
+    if not link:
+        return ""
+    try:
+        resp = requests.get(link, timeout=15)
+        soup = BeautifulSoup(resp.text, "html.parser")
 
-    # 翻译成中文
-    translated = GoogleTranslator(source='en', target='zh-cn').translate(rewritten)
+        if "udn.com" in link:
+            div = soup.select_one("div#story_body_content")
+        elif "ltn.com" in link:
+            div = soup.select_one("div.text")
+        elif "yahoo.com" in link:
+            div = soup.select_one("article")
+        else:
+            div = None
 
-    # 图片
-    img_tag = soup.select_one("img")
-    image_url = img_tag["src"] if img_tag else None
+        if div:
+            paragraphs = div.find_all("p")
+            content = "\n".join(p.get_text(strip=True) for p in paragraphs if p.get_text(strip=True))
+            return content
+    except Exception as e:
+        print(f"抓文章内容失败 ({link}): {e}")
+    return ""
 
-    # 存入数据库
-    insert_news(title, translated, image_url)
+# --------------------------
+# 抓文章主图
+# --------------------------
+def fetch_article_image(link):
+    if not link:
+        return None
+    try:
+        resp = requests.get(link, timeout=15)
+        soup = BeautifulSoup(resp.text, "html.parser")
+        img_url = None
 
-    print(f"✅ 已抓取并改写: {title}")
+        if "udn.com" in link:
+            div = soup.select_one("div#story_body_content")
+            if div:
+                img = div.find("img")
+                if img:
+                    img_url = img.get("data-src") or img.get("src")
+        elif "ltn.com" in link:
+            div = soup.select_one("div.text")
+            if div:
+                img = div.find("img")
+                if img:
+                    img_url = img.get("src")
+        elif "yahoo.com" in link:
+            meta = soup.select_one('meta[property="og:image"]')
+            if meta:
+                img_url = meta.get("content")
 
-if __name__ == "__main__":
-    test_url = "https://example.com/news/test"  # 你换成目标新闻网址
-    harvest_news(test_url)
+        if img_url and img_url.startswith("/"):
+            img_url = urljoin(link, img_url)
+
+        return img_url
+    except Exception as e:
+        print(f"抓文章图片失败 ({link}): {e}")
+    return None
+
+# --------------------------
+# 抓网站新闻标题和链接
+# --------------------------
+def fetch_site_news(url, limit=20):
+    news_items = []
+    try:
+        resp = requests.get(url, timeout=20)
+        soup = BeautifulSoup(resp.text, "html.parser")
+
+        if "udn.com" in url:
+            items = soup.select("div.story-list__text a")
+        elif "ltn.com" in url:
+            items = soup.select("div.title a")
+        elif "yahoo.com" in url:
+            items = soup.select("h3 a")
+        else:
+            items = []
+
+        for item in items[:limit]:
+            title = item.get_text(strip=True)
+            link = item.get("href")
+            if link and link.startswith("/"):
+                link = urljoin(url, link)
+            news_items.append((title, link))
+    except Exception as e:
+        print(f"抓 {url} 出错: {e}")
+    return news_items
+
+# --------------------------
+# 抓所有新闻，改写并插入数据库
+# --------------------------
+def fetch_news():
+    all_news = []
+    sites = [
+        "https://udn.com/news/index",
+        "https://www.ltn.com.tw",
+        "https://tw.news.yahoo.com/"
+    ]
+
+    for url in sites:
+        for title, link in fetch_site_news(url, limit=20):
+            if not link or news_exists(link):
+                continue
+            content = fetch_article_content(link)
+            if not content:
+                continue
+            image_url = fetch_article_image(link)
+            title_rw = rewrite_text(title)
+            content_rw = rewrite_text(content)
+            try:
+                insert_news(title_rw, content_rw, link, image_url)
+                all_news.append({
+                    "title": title_rw,
+                    "content": content_rw,
+                    "link": link,
+                    "image_url": image_url
+                })
+                print(f"插入成功: {title_rw[:30]}...")
+            except Exception as e:
+                print(f"插入失败: {e}")
+            time.sleep(1)
+    print(f"抓取完成，总共 {len(all_news)} 条新新闻")
+    return all_news
