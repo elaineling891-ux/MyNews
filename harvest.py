@@ -3,23 +3,34 @@ from bs4 import BeautifulSoup
 from db import insert_news, news_exists
 import time
 from urllib.parse import urljoin
-from transformers import pipeline
 
 # --------------------------
-# 初始化 Hugging Face T5 改写模型
+# 初始化 Cohere 改写 API
 # --------------------------
-paraphraser = pipeline("text2text-generation", model="Vamsi/T5_Paraphrase_Paws")
+COHERE_API_KEY = "W2pkO3EABJq0LyPyCZ6I1yYwBsLuuiiHDG45qmO5"
+COHERE_URL = "https://api.cohere.ai/v1/generate"
 
-def rewrite_text_t5(text):
+def rewrite_text_cohere(text):
     if not text:
         return text
     try:
-        prompt = f"paraphrase: {text} </s>"
-        result = paraphraser(prompt, max_length=512, num_return_sequences=1, temperature=0.7)
-        if result and "generated_text" in result[0]:
-            return result[0]["generated_text"].strip()
+        headers = {
+            "Authorization": f"Bearer {COHERE_API_KEY}",
+            "Content-Type": "application/json"
+        }
+        payload = {
+            "model": "command-xsmall-nightly",  # 免费版模型
+            "prompt": f"Paraphrase the following text in Chinese, keeping meaning but changing wording:\n\n{text}",
+            "max_tokens": 400,
+            "temperature": 0.7
+        }
+        resp = requests.post(COHERE_URL, headers=headers, json=payload, timeout=30)
+        if resp.status_code == 200:
+            data = resp.json()
+            if "generations" in data and len(data["generations"]) > 0:
+                return data["generations"][0]["text"].strip()
     except Exception as e:
-        print("T5 改写失败:", e)
+        print("Cohere 改写失败:", e)
     return text
 
 # --------------------------
@@ -34,7 +45,7 @@ def add_linebreaks(text, n_sentences=3):
     return "\n\n".join(lines)
 
 def rewrite_text(text):
-    rewritten = rewrite_text_t5(text)
+    rewritten = rewrite_text_cohere(text)
     return add_linebreaks(rewritten)
 
 # --------------------------
@@ -151,6 +162,3 @@ def fetch_news():
                 print(f"插入成功: {title_rw[:30]}...")
             except Exception as e:
                 print(f"插入失败: {e}")
-            time.sleep(1)
-    print(f"抓取完成，总共 {len(all_news)} 条新新闻")
-    return all_news
