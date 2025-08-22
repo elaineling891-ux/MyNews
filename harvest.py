@@ -29,7 +29,6 @@ def rewrite_text_cohere(text):
             data = resp.json()
             if "generations" in data and len(data["generations"]) > 0:
                 return data["generations"][0]["text"].strip()
-        print("Cohere 改写成功:", e)
          print(f"改写成功...")
     except Exception as e:
         print("Cohere 改写失败:", e)
