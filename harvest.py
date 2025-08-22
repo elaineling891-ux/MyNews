@@ -46,6 +46,7 @@ def fetch_article_content(link):
     return ""
 
 def fetch_article_image(link):
+    """抓新闻文章主图"""
     if not link:
         return None
     try:
@@ -53,21 +54,31 @@ def fetch_article_image(link):
         soup = BeautifulSoup(resp.text, "html.parser")
 
         img_url = None
-        if "udn.com" in link:
-            img = soup.select_one("div#story_body_content img")
-            if img:
-                img_url = img.get("data-src") or img.get("src")
-        elif "ltn.com" in link:
-            img = soup.select_one("div.text img")
-            if img:
-                img_url = img.get("src")
-        elif "yahoo.com" in link:
-            img = soup.select_one("article img")
-            if img:
-                img_url = img.get("src")
 
+        if "udn.com" in link:
+            # UDN 抓正文第一张图片
+            div = soup.select_one("div#story_body_content")
+            if div:
+                img = div.find("img")
+                if img:
+                    img_url = img.get("data-src") or img.get("src")
+        elif "ltn.com" in link:
+            # LTN 抓正文第一张图片
+            div = soup.select_one("div.text")
+            if div:
+                img = div.find("img")
+                if img:
+                    img_url = img.get("src")
+        elif "yahoo.com" in link:
+            # Yahoo 新闻主图在 meta[property="og:image"]
+            meta = soup.select_one('meta[property="og:image"]')
+            if meta:
+                img_url = meta.get("content")
+
+        # 补全相对路径
         if img_url and img_url.startswith("/"):
             img_url = urljoin(link, img_url)
+
         return img_url
     except Exception as e:
         print(f"抓文章图片失败 ({link}): {e}")
