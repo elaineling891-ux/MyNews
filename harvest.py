@@ -45,6 +45,34 @@ def fetch_article_content(link):
         print(f"抓文章内容失败 ({link}): {e}")
     return ""
 
+def fetch_article_image(link):
+    if not link:
+        return None
+    try:
+        resp = requests.get(link, timeout=15)
+        soup = BeautifulSoup(resp.text, "html.parser")
+
+        img_url = None
+        if "udn.com" in link:
+            img = soup.select_one("div#story_body_content img")
+            if img:
+                img_url = img.get("data-src") or img.get("src")
+        elif "ltn.com" in link:
+            img = soup.select_one("div.text img")
+            if img:
+                img_url = img.get("src")
+        elif "yahoo.com" in link:
+            img = soup.select_one("article img")
+            if img:
+                img_url = img.get("src")
+
+        if img_url and img_url.startswith("/"):
+            img_url = urljoin(link, img_url)
+        return img_url
+    except Exception as e:
+        print(f"抓文章图片失败 ({link}): {e}")
+    return None
+
 # --------------------------
 # 抓网站新闻标题和链接
 # --------------------------
@@ -93,10 +121,11 @@ def fetch_news():
             content = fetch_article_content(link)
             if not content:
                 continue
+            image_url = fetch_article_image(link)  # 新增
             title_rw = rewrite_text(title)
             content_rw = rewrite_text(content)
             try:
-                insert_news(title_rw, content_rw, link)
+                insert_news(title_rw, content_rw, link, image_url)
                 all_news.append({"title": title_rw, "content": content_rw, "link": link})
                 print(f"插入成功: {title_rw[:30]}...")
             except Exception as e:
