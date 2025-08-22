@@ -11,26 +11,20 @@ DEEPAI_API_KEY = os.getenv("DEEPAI_API_KEY")  # DeepAI API Key
 # 调用 DeepAI 改写
 # --------------------------
 def rewrite_text_deepai(text):
-    """使用 DeepAI API 改写文本"""
     if not text:
-        return ""
-    url = "https://api.deepai.org/api/text-paraphraser"
-    headers = {
-        "api-key": DEEPAI_API_KEY
-    }
-    payload = {
-        "text": text
-    }
+        return text
+    url = "https://api.deepai.org/api/gpt"
+    headers = {"api-key": DEEPAI_API_KEY}
     try:
-        resp = requests.post(url, headers=headers, data=payload, timeout=15)
+        prompt = f"请帮我改写以下内容，保持意思不变，但用不同表达方式：\n\n{text}"
+        resp = requests.post(url, data={"text": prompt}, headers=headers, timeout=20)
         resp.raise_for_status()
         data = resp.json()
-        # DeepAI 返回结果在 "output" 里，通常是字符串或列表
-        if isinstance(data.get("output"), list):
-            return " ".join(data["output"])
-        return data.get("output", text)
+        if "output" in data:
+            return data["output"]
+        return text
     except Exception as e:
-        print("DeepAI 改写失败:", e)
+        print("DeepAI GPT 改写失败:", e)
         return text
 
 # --------------------------
