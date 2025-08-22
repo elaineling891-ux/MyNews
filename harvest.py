@@ -25,6 +25,7 @@ def rewrite_text_cohere(text):
             "temperature": 0.7
         }
         resp = requests.post(COHERE_URL, headers=headers, json=payload, timeout=30)
+        print(resp.status_code ✅")  
         if resp.status_code == 200:
             data = resp.json()
             if "generations" in data and len(data["generations"]) > 0:
