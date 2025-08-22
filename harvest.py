@@ -11,12 +11,15 @@ HF_API_TOKEN = os.getenv("HF_API_TOKEN")  # Hugging Face Token
 # 调用 Hugging Face 公共模型改写
 # --------------------------
 def rewrite_text_hf(text):
-    """使用公开模型 prithivida/parrot_paraphraser_on_T5 改写文本"""
+    """使用公开模型 ramsrigouthamg/t5_paraphraser 改写文本"""
     if not text:
         return ""
-    API_URL = "https://api-inference.huggingface.co/models/prithivida/parrot_paraphraser_on_T5"
+    API_URL = "https://api-inference.huggingface.co/models/ramsrigouthamg/t5_paraphraser"
     headers = {"Authorization": f"Bearer {HF_API_TOKEN}"}
-    payload = {"inputs": text, "parameters": {"max_length": 512, "do_sample": False}}
+    payload = {
+        "inputs": text,
+        "parameters": {"max_length": 512, "do_sample": False}
+    }
     try:
         response = requests.post(API_URL, headers=headers, json=payload, timeout=30)
         response.raise_for_status()
