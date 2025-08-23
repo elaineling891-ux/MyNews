@@ -60,7 +60,7 @@ def rewrite_text(text):
     return translate_to_simplified(rewritten)  # ✅ 最后翻译成简体
 
 # --------------------------
-# 以下抓取文章内容、图片、网站新闻等保持不变
+# 抓取文章内容
 # --------------------------
 def fetch_article_content(link):
     if not link:
@@ -75,6 +75,8 @@ def fetch_article_content(link):
             div = soup.select_one("div.text")
         elif "yahoo.com" in link:
             div = soup.select_one("article")
+        elif "sinchew.com.my" in link:
+            div = soup.select_one("div.entry-content") or soup.select_one("div.article-content")
         else:
             div = None
 
@@ -86,6 +88,9 @@ def fetch_article_content(link):
         print(f"抓文章内容失败 ({link}): {e}")
     return ""
 
+# --------------------------
+# 抓取文章图片
+# --------------------------
 def fetch_article_image(link):
     if not link:
         return None
@@ -110,6 +115,10 @@ def fetch_article_image(link):
             meta = soup.select_one('meta[property="og:image"]')
             if meta:
                 img_url = meta.get("content")
+        elif "sinchew.com.my" in link:
+            meta = soup.select_one('meta[property="og:image"]')
+            if meta:
+                img_url = meta.get("content")
 
         if img_url and img_url.startswith("/"):
             img_url = urljoin(link, img_url)
@@ -119,6 +128,9 @@ def fetch_article_image(link):
         print(f"抓文章图片失败 ({link}): {e}")
     return None
 
+# --------------------------
+# 抓取站点新闻列表
+# --------------------------
 def fetch_site_news(url, limit=20):
     news_items = []
     try:
@@ -131,6 +143,8 @@ def fetch_site_news(url, limit=20):
             items = soup.select("div.title a")
         elif "yahoo.com" in url:
             items = soup.select("h3 a span") or soup.select("a[aria-label]")
+        elif "sinchew.com.my" in url:
+            items = soup.select("h5.entry-title a")
         else:
             items = []
 
@@ -144,12 +158,16 @@ def fetch_site_news(url, limit=20):
         print(f"抓 {url} 出错: {e}")
     return news_items
 
+# --------------------------
+# 主流程
+# --------------------------
 def fetch_news():
     all_news = []
     sites = [
-        "https://udn.com/news/index",
-        "https://www.ltn.com.tw",
-        "https://tw.news.yahoo.com/"
+      #  "https://udn.com/news/index",
+      #  "https://www.ltn.com.tw",
+       # "https://tw.news.yahoo.com/",
+        "https://www.sinchew.com.my/latest"
     ]
 
     for url in sites:
