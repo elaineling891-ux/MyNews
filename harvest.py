@@ -8,34 +8,29 @@ from urllib.parse import urljoin
 # 初始化 Cohere 改写 API
 # --------------------------
 COHERE_API_KEY = "W2pkO3EABJq0LyPyCZ6I1yYwBsLuuiiHDG45qmO5"
-COHERE_URL = "https://api.cohere.ai/v1/generate"
+COHERE_URL = "https://api.cohere.ai/v1/chat"
 
-def rewrite_text_cohere(text):
-    if not text:
+def rewrite_text_cohere(text: str) -> str:
+    headers = {
+        "Authorization": f"Bearer {COHERE_API_KEY}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "model": "command-r",  # ✅ 最新模型
+        "message": f"请用中文改写以下文本，保持原意但用不同的措辞：\n\n{text}",
+        "temperature": 0.7
+    }
+
+    resp = requests.post(COHERE_URL, headers=headers, json=payload)
+    if resp.status_code != 200:
+        print("Cohere 改写失败:", resp.status_code, resp.text)
         return text
+
+    data = resp.json()
     try:
-        headers = {
-            "Authorization": f"Bearer {COHERE_API_KEY}",
-            "Content-Type": "application/json"
-        }
-        payload = {
-            "model": "command-xsmall-nightly",  # 免费版模型
-            "prompt": f"Paraphrase the following text in Chinese, keeping meaning but changing wording:\n\n{text}",
-            "max_tokens": 400,
-            "temperature": 0.7
-        }
-        resp = requests.post(COHERE_URL, headers=headers, json=payload, timeout=30)
-        print("请求状态码:", resp.status_code, "✅")   # ✅ 注意这里缩进对齐
-        if resp.status_code == 200:
-            data = resp.json()
-            if "generations" in data and len(data["generations"]) > 0:
-                rewritten = data["generations"][0]["text"].strip()
-                print("改写成功 ✅")
-                return rewritten
-    except Exception as e:
-        print("Cohere 改写失败:", e)
-    
-    return text
+        return data["text"]  # chat 接口会直接给一个 text 字段
+    except KeyError:
+        return text
 
 # --------------------------
 # 后处理：添加换行，每3句换一次行
@@ -163,6 +158,6 @@ def fetch_news():
                     "link": link,
                     "image_url": image_url
                 })
-                print(f"插入成功: {title_rw[:30]}...")
+                print(f"✅ 改写成功并保存: {title_rw[:30]}...")
             except Exception as e:
                 print(f"插入失败: {e}")
