@@ -3,6 +3,7 @@ from bs4 import BeautifulSoup
 from db import insert_news, news_exists
 import time
 from urllib.parse import urljoin
+from deep_translator import GoogleTranslator
 
 # --------------------------
 # 初始化 Cohere 改写 API
@@ -43,9 +44,20 @@ def add_linebreaks(text, n_sentences=3):
         lines.append("".join(sentences[i:i+n_sentences]))
     return "\n\n".join(lines)
 
+# --------------------------
+# 翻译成简体中文
+# --------------------------
+def translate_to_simplified(text: str) -> str:
+    try:
+        return GoogleTranslator(source="auto", target="zh-CN").translate(text)
+    except Exception as e:
+        print("翻译失败:", e)
+        return text
+
 def rewrite_text(text):
     rewritten = rewrite_text_cohere(text)
-    return add_linebreaks(rewritten)
+    rewritten = add_linebreaks(rewritten)
+    return translate_to_simplified(rewritten)  # ✅ 最后翻译成简体
 
 # --------------------------
 # 以下抓取文章内容、图片、网站新闻等保持不变
