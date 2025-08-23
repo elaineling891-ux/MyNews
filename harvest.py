@@ -134,26 +134,27 @@ def fetch_article_image(link):
 def fetch_site_news(url, limit=20):
     news_items = []
     try:
-        resp = requests.get(url, timeout=20)
+        headers = {
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/114.0 Safari/537.36"
+            )
+        }
+        resp = requests.get(url, headers=headers, timeout=20)
+
+        # 打印前 500 个字符调试（确认是不是正常的 HTML）
+        print("DEBUG >>> 响应前500字符:\n", resp.text[:500])
+
         soup = BeautifulSoup(resp.text, "html.parser")
-
-        if "udn.com" in url:
-            items = soup.select("div.story-list__text a")
-        elif "ltn.com" in url:
-            items = soup.select("div.title a")
-        elif "yahoo.com" in url:
-            items = soup.select("h3 a span") or soup.select("a[aria-label]")
-        elif "sinchew.com.my" in url:
-           items = soup.select("h2.post-title.entry-title a")
-        else:
-            items = []
-
+        items = soup.select("h2.post-title.entry-title a")
         for item in items[:limit]:
             title = item.get_text(strip=True)
             link = item.get("href")
             if link and link.startswith("/"):
                 link = urljoin(url, link)
             news_items.append((title, link))
+
     except Exception as e:
         print(f"抓 {url} 出错: {e}")
     return news_items
