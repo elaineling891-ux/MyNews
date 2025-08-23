@@ -4,6 +4,7 @@ from db import insert_news, news_exists
 import time
 from urllib.parse import urljoin
 from deep_translator import GoogleTranslator
+from requests_html import HTMLSession
 
 # --------------------------
 # 初始化 Cohere 改写 API
@@ -134,6 +135,7 @@ def fetch_article_image(link):
 def fetch_site_news(url, limit=20):
     news_items = []
     try:
+        session = HTMLSession()
         headers = {
             "User-Agent": (
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -141,20 +143,18 @@ def fetch_site_news(url, limit=20):
                 "Chrome/114.0 Safari/537.36"
             )
         }
-        resp = requests.get(url, headers=headers, timeout=20)
+        r = session.get(url, headers=headers, timeout=30)
+        r.html.render(timeout=30, sleep=3)  # 强制执行 JS
 
-        # 打印前 500 个字符调试（确认是不是正常的 HTML）
-        print("DEBUG >>> 响应前500字符:\n", resp.text[:500])
+        print("DEBUG >>> 渲染后前500字符:\n", r.html.html[:500])
 
-        soup = BeautifulSoup(resp.text, "html.parser")
-        items = soup.select("h2.post-title.entry-title a")
+        items = r.html.find("h2.post-title.entry-title a")
         for item in items[:limit]:
-            title = item.get_text(strip=True)
-            link = item.get("href")
+            title = item.text.strip()
+            link = item.attrs.get("href")
             if link and link.startswith("/"):
                 link = urljoin(url, link)
             news_items.append((title, link))
-
     except Exception as e:
         print(f"抓 {url} 出错: {e}")
     return news_items
