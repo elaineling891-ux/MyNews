@@ -9,3 +9,5 @@ deep-translator
 cohere
 requests-html
 pyppeteer
+lxml
+lxml_html_clean
