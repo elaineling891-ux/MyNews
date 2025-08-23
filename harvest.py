@@ -64,30 +64,23 @@ def rewrite_text(text):
 # 抓取文章内容
 # --------------------------
 def fetch_article_content(link):
-    if not link:
-        return ""
     try:
         resp = requests.get(link, timeout=15)
         soup = BeautifulSoup(resp.text, "html.parser")
-
-        if "udn.com" in link:
-            div = soup.select_one("div#story_body_content")
-        elif "ltn.com" in link:
-            div = soup.select_one("div.text")
-        elif "yahoo.com" in link:
-            div = soup.select_one("article")
-        elif "sinchew.com.my" in link:
-            div = soup.select_one("div.entry-content") or soup.select_one("div.article-content")
-        else:
-            div = None
-
+        div = soup.select_one("div.entry-content") or soup.select_one("div.article-content")
         if div:
             paragraphs = div.find_all("p")
-            content = "\n".join(p.get_text(strip=True) for p in paragraphs if p.get_text(strip=True))
-            return content
+            return "\n".join(p.get_text(strip=True) for p in paragraphs if p.get_text(strip=True))
     except Exception as e:
         print(f"抓文章内容失败 ({link}): {e}")
     return ""
+
+if __name__ == "__main__":
+    url = "https://www.sinchew.com.my/latest"
+    news_list = fetch_site_news(url)
+    for title, link in news_list:
+        content = fetch_article_content(link)
+        print(f"标题: {title}\n链接: {link}\n内容预览: {content[:100]}...\n")
 
 # --------------------------
 # 抓取文章图片
@@ -139,7 +132,7 @@ def fetch_site_news(url, limit=20):
         page = browser.new_page()
         page.goto(url, timeout=30000)
         page.wait_for_timeout(3000)  # 等 JS 加载
-        
+
         anchors = page.query_selector_all("h2.post-title.entry-title a")[:limit]
         for a in anchors:
             title = a.inner_text().strip()
@@ -149,6 +142,7 @@ def fetch_site_news(url, limit=20):
             news_items.append((title, link))
         browser.close()
     return news_items
+
 
 # --------------------------
 # 主流程
