@@ -144,7 +144,7 @@ def fetch_site_news(url, limit=20):
         elif "yahoo.com" in url:
             items = soup.select("h3 a span") or soup.select("a[aria-label]")
         elif "sinchew.com.my" in url:
-            items = soup.select("h5.entry-title a")
+            items = soup.select("div.post-title a")
         else:
             items = []
 
