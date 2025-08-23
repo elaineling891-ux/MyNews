@@ -7,4 +7,5 @@ jinja2
 aiofiles
 deep-translator
 cohere
+greenlet==2.3.2
 playwright==1.41.0
