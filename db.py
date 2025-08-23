@@ -13,7 +13,7 @@ def init_db():
         content TEXT,
         link TEXT,
         image_url TEXT,
-        created_at TIMESTAMP DEFAULT NOW(),
+        created_at TIMESTAMP DEFAULT (NOW() AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Singapore'),
         UNIQUE(title),
         UNIQUE(link)
     )
@@ -48,7 +48,7 @@ def get_all_news(limit=20):
             "title": r[1],
             "content": r[2],
             "image_url": r[3],
-            "created_at": r[4]
+            "created_at": r[4]  # 已经是新加坡时间
         } for r in rows
     ]
 
